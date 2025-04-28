@@ -36,11 +36,21 @@ export class FriendsService {
     search?: string,
     limit = 10,
     offset = 0
-  ): Promise<FriendEntity[]> {
+  ): Promise<{
+    friends: FriendEntity[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const whereClause: Prisma.FriendWhereInput = {
       status: "ACCEPTED",
       OR: [{ userId: userId }, { friendId: userId }],
     };
+
+    // Find total count first (before pagination)
+    const total = await this.prisma.friend.count({
+      where: whereClause,
+    });
 
     const friends = await this.prisma.friend.findMany({
       where: whereClause,
@@ -52,7 +62,7 @@ export class FriendsService {
       skip: offset,
     });
 
-    // Filter by search manually if needed
+    // Apply search filter (optional)
     const filteredFriends = friends.filter((friend) => {
       const otherUser = friend.userId === userId ? friend.friend : friend.user;
       if (!search) return true;
@@ -63,6 +73,27 @@ export class FriendsService {
       );
     });
 
-    return filteredFriends.map((friend) => new FriendEntity(friend));
+    const page = Math.floor(offset / limit) + 1;
+
+    return {
+      friends: filteredFriends.map((friend) => new FriendEntity(friend)),
+      total,
+      page,
+      limit,
+    };
+  }
+
+  async getIncomingFriendRequests(userId: number): Promise<FriendEntity[]> {
+    const requests = await this.prisma.friend.findMany({
+      where: {
+        friendId: userId,
+        status: "PENDING",
+      },
+      include: {
+        user: true, // info about who sent the request
+      },
+    });
+
+    return requests.map((request) => new FriendEntity(request));
   }
 }

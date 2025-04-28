@@ -45,4 +45,10 @@ export class FriendsController {
       Number(offset)
     );
   }
+
+  @Get("requests")
+  async getIncomingRequests(@Req() req: RequestWithUser) {
+    const userId = req.user.userId;
+    return this.friendsService.getIncomingFriendRequests(userId);
+  }
 }
