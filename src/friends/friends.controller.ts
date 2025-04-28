@@ -7,6 +7,7 @@ import {
   UseGuards,
   Get,
   Req,
+  Query,
 } from "@nestjs/common";
 import { FriendsService } from "./friends.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -30,8 +31,18 @@ export class FriendsController {
   }
 
   @Get()
-  async getFriends(@Req() req: RequestWithUser) {
+  async getFriends(
+    @Req() req: RequestWithUser,
+    @Query("search") search?: string,
+    @Query("limit") limit?: string,
+    @Query("offset") offset?: string
+  ) {
     const userId = req.user.userId;
-    return this.friendsService.getFriends(userId);
+    return this.friendsService.getFriends(
+      userId,
+      search,
+      Number(limit),
+      Number(offset)
+    );
   }
 }
