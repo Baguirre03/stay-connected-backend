@@ -4,20 +4,27 @@ import { Response } from "express";
 
 @Controller("auth")
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private readonly authService: AuthService) {}
 
   @Post("login")
-  async login(@Body() body: any, @Res() res: Response) {
-    const { email, password } = body;
-    const user = await this.authService.validateUser(email, password);
-
+  async login(
+    @Body() body: { email: string; password: string },
+    @Res() res: Response
+  ) {
+    const user = await this.authService.validateUser(body.email, body.password);
     if (!user) {
-      return res.status(401).send("Unauthorized");
+      return res.status(401).send({ message: "Invalid credentials" });
     }
 
-    const token = await this.authService.login(user);
+    const { access_token, user: userData } = await this.authService.login(user);
 
-    res.cookie("jwt", token.access_token, { httpOnly: true });
-    return res.send({ message: "Logged in" });
+    res.cookie("jwt", access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    return res.send({ user: userData });
   }
 }

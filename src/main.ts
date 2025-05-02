@@ -5,16 +5,23 @@ import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import * as cookieParser from "cookie-parser";
 import { ValidationPipe } from "@nestjs/common";
-import { ClassSerializerInterceptor } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
+import { ConfigService } from "@nestjs/config";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
+
+  app.enableCors({
+    origin: true, // In production, replace with your frontend URL
+    credentials: true,
+  });
 
   app.useGlobalPipes(new ValidationPipe());
-  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
-
   app.use(cookieParser());
-  await app.listen(3000);
+
+  const port = configService.get<number>("PORT") || 3000;
+  await app.listen(port);
+  console.log(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();

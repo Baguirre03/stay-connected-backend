@@ -31,26 +31,11 @@ export class FriendsService {
     return new FriendEntity(acceptedFriend);
   }
 
-  async getFriends(
-    userId: number,
-    search?: string,
-    limit = 10,
-    offset = 0
-  ): Promise<{
-    friends: FriendEntity[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  async getFriends(userId: number, search?: string): Promise<FriendEntity[]> {
     const whereClause: Prisma.FriendWhereInput = {
       status: "ACCEPTED",
       OR: [{ userId: userId }, { friendId: userId }],
     };
-
-    // Find total count first (before pagination)
-    const total = await this.prisma.friend.count({
-      where: whereClause,
-    });
 
     const friends = await this.prisma.friend.findMany({
       where: whereClause,
@@ -58,29 +43,20 @@ export class FriendsService {
         user: true,
         friend: true,
       },
-      take: limit,
-      skip: offset,
     });
 
-    // Apply search filter (optional)
-    const filteredFriends = friends.filter((friend) => {
-      const otherUser = friend.userId === userId ? friend.friend : friend.user;
-      if (!search) return true;
-      const searchLower = search.toLowerCase();
-      return (
-        otherUser.name.toLowerCase().includes(searchLower) ||
-        otherUser.email?.toLowerCase().includes(searchLower)
-      );
-    });
-
-    const page = Math.floor(offset / limit) + 1;
-
-    return {
-      friends: filteredFriends.map((friend) => new FriendEntity(friend)),
-      total,
-      page,
-      limit,
-    };
+    return friends
+      .filter((friend) => {
+        const otherUser =
+          friend.userId === userId ? friend.friend : friend.user;
+        if (!search) return true;
+        const searchLower = search.toLowerCase();
+        return (
+          otherUser.name.toLowerCase().includes(searchLower) ||
+          otherUser.email?.toLowerCase().includes(searchLower)
+        );
+      })
+      .map((friend) => new FriendEntity(friend));
   }
 
   async getIncomingFriendRequests(userId: number): Promise<FriendEntity[]> {

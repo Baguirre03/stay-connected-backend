@@ -1,6 +1,6 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
-import { UserEntity } from "./user.entity";
+import { UserResponseDto } from "./dto/user-response.dto";
 import * as bcrypt from "bcrypt";
 
 @Injectable()
@@ -13,28 +13,35 @@ export class UsersService {
 
   async createUser(data: any) {
     const hashedPassword = await bcrypt.hash(data.password, 10);
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
         ...data,
         password: hashedPassword,
       },
     });
+    return new UserResponseDto(user);
   }
 
-  async getUserById(id: number): Promise<UserEntity> {
-    const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) return null;
-    return new UserEntity(user);
+  async getUserById(id: number): Promise<UserResponseDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    return new UserResponseDto(user);
   }
 
-  async getAllUsers(): Promise<UserEntity[]> {
+  async getAllUsers(): Promise<UserResponseDto[]> {
     const users = await this.prisma.user.findMany();
-    return users.map((user) => new UserEntity(user));
+    return users.map((user) => new UserResponseDto(user));
   }
 
-  async updateUser(id: number, data: any): Promise<UserEntity> {
+  async updateUser(id: number, data: any): Promise<UserResponseDto> {
     if (data.password) {
-      data.password = await bcrypt.hash(data.password, 10); // hash if password is being updated
+      data.password = await bcrypt.hash(data.password, 10);
     }
 
     const updatedUser = await this.prisma.user.update({
@@ -42,7 +49,7 @@ export class UsersService {
       data,
     });
 
-    return new UserEntity(updatedUser);
+    return new UserResponseDto(updatedUser);
   }
 
   async deleteUser(id: number) {
